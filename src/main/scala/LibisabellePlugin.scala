@@ -38,7 +38,10 @@ object LibisabellePlugin extends AutoPlugin {
 
   def isabelleSettings(config: Configuration): Seq[Setting[_]] = Seq(
     resourceGenerators in config <+= generatorTask(config),
-    isabelleSource in config := (sourceDirectory in config).value / "isabelle"
+    isabelleSource in config := (sourceDirectory in config).value / "isabelle",
+    watchSources <++= (isabelleSource in config) map { src =>
+      (src ** "*").get
+    }
   )
 
   override def projectSettings: Seq[Setting[_]] =
