@@ -21,9 +21,21 @@ object LibisabellePlugin extends AutoPlugin {
       val log = streams.log
       val target = rawTarget / "isabelle"
       if (source.exists()) {
-        log.info(s"Copying Isabelle sources from $source to $target")
-        IO.delete(target)
-        IO.copyDirectory(source, target / name)
+        def upToDate(in: File, out: File): Boolean = {
+          in.getName == out.getName && in.exists() && out.exists() && (
+          if(in.isDirectory && out.isDirectory) {
+            val inFiles = in.listFiles()
+            val outFiles = out.listFiles()
+            inFiles.size == outFiles.size && inFiles.zip(outFiles).forall(in => upToDate(in._1, in._2))
+          } else if(in.isFile && out.isFile) {
+            in.lastModified() == out.lastModified()
+          } else false)
+        }
+        if(!upToDate(source, target / name)) {
+          log.info(s"Copying Isabelle sources from $source to $target")
+          IO.delete(target)
+          IO.copyDirectory(source, target / name, preserveLastModified=true)
+        }
         val files = (target ** "*").get.filter(_.isFile)
         val mapper = Path.rebase(target / name, "")
         val contents = files.map(mapper).map(_.get).mkString("\n")
