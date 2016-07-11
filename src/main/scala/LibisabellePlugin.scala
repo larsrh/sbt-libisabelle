@@ -26,7 +26,7 @@ object LibisabellePlugin extends AutoPlugin {
         def upToDate(in: File, out: File, testName: Boolean = true): Boolean = {
           (!testName || (in.getName == out.getName) -/> s"$in != $out") &&
           in.exists() -/> s"$in does not exist" &&
-          out.exists() -/>  s"$in does not exist" && (
+          out.exists() -/>  s"$out does not exist" && (
           if (in.isDirectory && out.isDirectory) {
             val inFiles = in.listFiles()
             val outFiles = out.listFiles()
