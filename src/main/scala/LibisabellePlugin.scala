@@ -5,6 +5,8 @@ import sbt.Keys._
 
 import java.io.File
 
+import org.apache.commons.io.FilenameUtils
+
 object LibisabellePlugin extends AutoPlugin {
 
   object autoImport {
@@ -45,7 +47,7 @@ object LibisabellePlugin extends AutoPlugin {
         }
         val files = ((target / name) ** "*").get.filter(_.isFile)
         val mapper = Path.rebase(target, "")
-        val contents = files.map(mapper).map(_.get).mkString("\n")
+        val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
         val list = target / ".files"
         IO.write(list, s"$contents")
         list +: files

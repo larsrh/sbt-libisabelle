@@ -20,6 +20,8 @@ homepage := Some(url("http://lars.hupel.info/libisabelle/"))
 
 licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
+libraryDependencies += "commons-io" % "commons-io" % "2.5"
+
 pomExtra := (
   <developers>
     <developer>
