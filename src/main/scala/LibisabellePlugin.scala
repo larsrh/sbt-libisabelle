@@ -9,6 +9,7 @@ object LibisabellePlugin extends AutoPlugin {
 
   object autoImport {
     lazy val isabelleSource = settingKey[File]("Isabelle source directory")
+    lazy val isabellePackage = settingKey[String]("Isabelle package name")
   }
 
   import autoImport._
@@ -17,9 +18,9 @@ object LibisabellePlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin
 
   def generatorTask(config: Configuration): Def.Initialize[Task[Seq[File]]] =
-    (streams, moduleName, isabelleSource in config, resourceManaged in config) map { (streams, name, source, rawTarget) =>
+    (streams, isabellePackage, isabelleSource in config, resourceManaged in config) map { (streams, name, source, rawTarget) =>
       val log = streams.log
-      val target = rawTarget / "isabelle"
+      val target = rawTarget / ".libisabelle"
       if (source.exists()) {
         def upToDate(in: File, out: File, testName: Boolean = true): Boolean = {
           (!testName || (in.getName == out.getName)) &&
@@ -43,10 +44,10 @@ object LibisabellePlugin extends AutoPlugin {
           IO.copyDirectory(source, target / name, preserveLastModified = true)
         }
         val files = ((target / name) ** "*").get.filter(_.isFile)
-        val mapper = Path.rebase(target / name, "")
+        val mapper = Path.rebase(target, "")
         val contents = files.map(mapper).map(_.get).mkString("\n")
-        val list = target / ".libisabelle_files"
-        IO.write(list, s"$name\n$contents")
+        val list = target / ".files"
+        IO.write(list, s"$contents")
         list +: files
       }
       else {
@@ -59,7 +60,8 @@ object LibisabellePlugin extends AutoPlugin {
     isabelleSource in config := (sourceDirectory in config).value / "isabelle",
     watchSources <++= (isabelleSource in config) map { src =>
       (src ** "*").get
-    }
+    },
+    isabellePackage := moduleName.value
   )
 
   override def projectSettings: Seq[Setting[_]] =
