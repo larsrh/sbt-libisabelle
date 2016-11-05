@@ -20,7 +20,12 @@ homepage := Some(url("http://lars.hupel.info/libisabelle/"))
 
 licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
-libraryDependencies += "commons-io" % "commons-io" % "2.5"
+libraryDependencies ++= Seq(
+  "commons-io" % "commons-io" % "2.5",
+  "info.hupel" %% "libisabelle-setup" % "0.5"
+)
+
+addSbtPlugin("info.hupel.fork.com.vast.sbt" %% "sbt-slf4j" % "0.3")
 
 pomExtra := (
   <developers>
