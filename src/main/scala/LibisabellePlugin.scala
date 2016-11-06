@@ -90,7 +90,10 @@ object LibisabellePlugin extends AutoPlugin {
               config <- configurations
             } {
               streams.log.info(s"Building session ${config.session} for ${env.version} ...")
-              System.build(env, config)
+              if (!System.build(env, config)) {
+                streams.log.error(s"Build of session ${config.session} for ${env.version} failed")
+                sys.error("build failed")
+              }
             }
           }
         }
