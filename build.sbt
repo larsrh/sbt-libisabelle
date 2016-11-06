@@ -49,6 +49,7 @@ credentials += Credentials(
 scriptedSettings
 scriptedLaunchOpts <+= version apply { v => "-Dproject.version="+v }
 
+scriptedBufferLog := false
 
 // Release stuff
 
