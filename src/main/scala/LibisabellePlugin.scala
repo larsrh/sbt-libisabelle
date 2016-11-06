@@ -141,16 +141,20 @@ object LibisabellePlugin extends AutoPlugin {
       (src ** "*").get
     },
     isabelleSessions in config := Nil,
+    isabelleSetup in config <<= isabelleSetupTask(config),
+    isabelleBuild in config <<= isabelleBuildTask(config)
+  )
+
+  def globalIsabelleSettings: Seq[Setting[_]] = Seq(
     isabellePackage := moduleName.value,
     isabelleVersions := Nil,
-    isabelleSetup in config <<= isabelleSetupTask(config),
-    isabelleBuild in config <<= isabelleBuildTask(config),
     logLevel in isabelleSetup := Level.Debug,
     logLevel in isabelleBuild := Level.Debug,
     concurrentRestrictions in Global += Tags.limit(Isabelle, 1)
   )
 
   override def projectSettings: Seq[Setting[_]] =
-    Seq(Compile, Test).flatMap(isabelleSettings)
+    Seq(Compile, Test).flatMap(isabelleSettings) ++
+    globalIsabelleSettings
 
 }
