@@ -22,7 +22,7 @@ licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
 libraryDependencies ++= Seq(
   "commons-io" % "commons-io" % "2.5",
-  "info.hupel" %% "libisabelle-setup" % "0.6"
+  "info.hupel" %% "libisabelle-setup" % "0.6.1"
 )
 
 resolvers += Resolver.sonatypeRepo("releases")
