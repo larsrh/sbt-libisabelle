@@ -24,6 +24,7 @@ object LibisabellePlugin extends AutoPlugin {
 
   object autoImport {
     lazy val isabelleSource = settingKey[File]("Isabelle source directory")
+    lazy val isabelleSourceFilter = settingKey[FileFilter]("Isabelle source files filter")
     lazy val isabellePackage = settingKey[String]("Isabelle package name")
     lazy val isabelleVersions = settingKey[Seq[String]]("Isabelle versions")
     lazy val isabelleSessions = settingKey[Seq[String]]("Isabelle sessions")
@@ -100,12 +101,13 @@ object LibisabellePlugin extends AutoPlugin {
       } tag(Isabelle)
 
   def generatorTask(config: Configuration): Def.Initialize[Task[Seq[File]]] =
-    (streams, isabellePackage, isabelleSource in config, resourceManaged in config) map { (streams, name, source, rawTarget) =>
+    (streams, isabellePackage, isabelleSource in config, isabelleSourceFilter, resourceManaged in config) map { (streams, name, source, filter, rawTarget) =>
       val log = streams.log
       val target = rawTarget / ".libisabelle"
       if (source.exists()) {
         def upToDate(in: File, out: File, testName: Boolean = true): Boolean = {
           (!testName || (in.getName == out.getName)) &&
+            filter.accept(in) &&
             in.exists() &&
             out.exists() && {
               if (in.isDirectory && out.isDirectory) {
@@ -121,9 +123,11 @@ object LibisabellePlugin extends AutoPlugin {
             }
         }
         if (!upToDate(source, target / name, testName = false)) {
-          log.info(s"Copying Isabelle sources from $source to $target")
+          val files = IO.listFiles(source, filter)
+          log.info(s"Copying ${files.length} Isabelle source(s) from $source to $target ...")
+          val paths = files.map(f => (f, Path.rebase(source, target / name)(f).get))
           IO.delete(target)
-          IO.copyDirectory(source, target / name, preserveLastModified = true)
+          IO.copy(paths, preserveLastModified = true)
         }
         val files = ((target / name) ** "*").get.filter(_.isFile)
         val mapper = Path.rebase(target, "")
@@ -153,7 +157,8 @@ object LibisabellePlugin extends AutoPlugin {
     isabelleVersions := Nil,
     logLevel in isabelleSetup := Level.Debug,
     logLevel in isabelleBuild := Level.Debug,
-    concurrentRestrictions in Global += Tags.limit(Isabelle, 1)
+    concurrentRestrictions in Global += Tags.limit(Isabelle, 1),
+    isabelleSourceFilter := - ".*"
   )
 
   override def projectSettings: Seq[Setting[_]] =
