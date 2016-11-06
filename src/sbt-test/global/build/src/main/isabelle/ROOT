@@ -1,0 +1,7 @@
+session Test = Pure +
+  theories
+    Test
+
+session Test_Fail = Pure +
+  theories
+    Test_Fail

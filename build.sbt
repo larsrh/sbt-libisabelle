@@ -46,6 +46,9 @@ credentials += Credentials(
   Option(System.getProperty("build.publish.credentials")) map (new File(_)) getOrElse (Path.userHome / ".ivy2" / ".credentials")
 )
 
+scriptedSettings
+scriptedLaunchOpts <+= version apply { v => "-Dproject.version="+v }
+
 
 // Release stuff
 
