@@ -12,8 +12,6 @@ import org.apache.commons.io.FilenameUtils
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
-import cats.data.Xor
-
 import com.vast.sbtlogger.SbtLogger
 
 import info.hupel.isabelle.System
@@ -48,21 +46,16 @@ object LibisabellePlugin extends AutoPlugin {
   def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] =
     (streams, isabelleVersions in config) map { (streams, vs) =>
       SbtLogger.withLogger(streams.log) {
-        withExecutionContext { implicit ec =>
-          val versions = vs.map(Version(_))
-          val setups = versions.foldLeft(Future.successful(List.empty[Setup])) { case (acc, v) =>
-            acc.flatMap { setups =>
-              streams.log.info(s"Creating setup for $v ...")
-              Setup.defaultSetup(v) match {
-                case Xor.Right(setup) => setup.map(_ :: setups)
-                case Xor.Left(reason) => sys.error(reason.explain)
-              }
-            }
+        val versions = vs.map(Version(_))
+        val setups = versions.map { v =>
+          streams.log.info(s"Creating setup for $v ...")
+          Setup.default(v) match {
+            case Right(setup) => setup
+            case Left(reason) => sys.error(reason.explain)
           }
-          val result = Await.result(setups, Duration.Inf)
-          streams.log.info("Done.")
-          result.to[Seq]
         }
+        streams.log.info("Done.")
+        setups
       }
     } tag(Isabelle)
 
@@ -73,8 +66,8 @@ object LibisabellePlugin extends AutoPlugin {
           val classLoader = new URLClassLoader(classpath.map(_.data.toURI.toURL).toArray)
           val path = (tmp / "sbt-libisabelle" / name / config.name).toPath
           val resources = Resources.dumpIsabelleResources(path, classLoader) match {
-            case Xor.Right(resources) => resources
-            case Xor.Left(reason) => sys.error(reason.explain)
+            case Right(resources) => resources
+            case Left(reason) => sys.error(reason.explain)
           }
           val configurations = sessions.map(resources.makeConfiguration(Nil, _))
 
