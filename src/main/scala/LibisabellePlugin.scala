@@ -98,30 +98,25 @@ object LibisabellePlugin extends AutoPlugin {
       val log = streams.log
       val target = rawTarget / ".libisabelle"
       if (source.exists()) {
-        def upToDate(in: File, out: File, testName: Boolean = true): Boolean = {
-          (!testName || (in.getName == out.getName)) &&
-            filter.accept(in) &&
-            in.exists() &&
-            out.exists() && {
-              if (in.isDirectory && out.isDirectory) {
-                val inFiles = in.listFiles()
-                val outFiles = out.listFiles()
-                (inFiles.size == outFiles.size) &&
-                  inFiles.zip(outFiles).forall(in => upToDate(in._1, in._2))
-              }
-              else if (in.isFile && out.isFile)
+        val mapping = (PathFinder(source) ** filter) pair (Path.rebase(source, target / name))
+
+        val upToDate = {
+          val targetFiles = (PathFinder(target / name).***).get
+          (mapping.map(_._2) == targetFiles) &&
+            (mapping.map(_._1) zip targetFiles).forall { case (in, out) =>
+              if (in.isFile && out.isFile)
                 in.lastModified == out.lastModified
               else
-                false
+                in.isDirectory && out.isDirectory
             }
         }
-        if (!upToDate(source, target / name, testName = false)) {
-          val files = IO.listFiles(source, filter)
-          log.info(s"Copying ${files.length} Isabelle source(s) from $source to $target ...")
-          val paths = files.map(f => (f, Path.rebase(source, target / name)(f).get))
+
+        if (!upToDate) {
+          log.info(s"Copying ${mapping.length} Isabelle source(s) from $source to $target ...")
           IO.delete(target)
-          IO.copy(paths, preserveLastModified = true)
+          IO.copy(mapping, preserveLastModified = true)
         }
+
         val files = ((target / name) ** "*").get.filter(_.isFile)
         val mapper = Path.rebase(target, "")
         val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
