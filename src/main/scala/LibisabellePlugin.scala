@@ -5,9 +5,10 @@ import sbt.Keys._
 
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.{Path => JPath}
 import java.util.concurrent.Executors
 
-import org.apache.commons.io.FilenameUtils
+import org.apache.commons.io.{FileUtils, FilenameUtils}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
@@ -16,7 +17,7 @@ import com.vast.sbtlogger.SbtLogger
 
 import info.hupel.isabelle.System
 import info.hupel.isabelle.api.{Configuration => _, _}
-import info.hupel.isabelle.setup.{Resources, Setup}
+import info.hupel.isabelle.setup.{Platform, Resources, Setup}
 
 object LibisabellePlugin extends AutoPlugin {
 
@@ -28,6 +29,7 @@ object LibisabellePlugin extends AutoPlugin {
     lazy val isabelleSessions = settingKey[Seq[String]]("Isabelle sessions")
     lazy val isabelleSetup = taskKey[Seq[Setup]]("Setup Isabelle")
     lazy val isabelleBuild = taskKey[Unit]("Build Isabelle sessions")
+    lazy val isabelleJEdit = inputKey[Unit]("Launch Isabelle/jEdit")
   }
 
   import autoImport._
@@ -43,34 +45,40 @@ object LibisabellePlugin extends AutoPlugin {
     result
   }
 
+  private def doSetup(v: Version, log: Logger) =
+    SbtLogger.withLogger(log) {
+      log.info(s"Creating setup for $v ...")
+      Setup.default(v) match {
+        case Right(setup) => setup
+        case Left(reason) => sys.error(reason.explain)
+      }
+    }
+
+  private def doDump(classpath: Seq[File], path: JPath, log: Logger) = {
+    val classLoader = new URLClassLoader(classpath.map(_.toURI.toURL).toArray)
+    SbtLogger.withLogger(log) {
+      Resources.dumpIsabelleResources(path, classLoader) match {
+        case Right(resources) => resources
+        case Left(reason) => sys.error(reason.explain)
+      }
+    }
+  }
+
   def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] =
     (streams, isabelleVersions in config) map { (streams, vs) =>
-      SbtLogger.withLogger(streams.log) {
-        val versions = vs.map(Version(_))
-        val setups = versions.map { v =>
-          streams.log.info(s"Creating setup for $v ...")
-          Setup.default(v) match {
-            case Right(setup) => setup
-            case Left(reason) => sys.error(reason.explain)
-          }
-        }
-        streams.log.info("Done.")
-        setups
-      }
+      val setups = vs.map(v => doSetup(Version(v), streams.log))
+      streams.log.info("Done.")
+      setups
     } tag(Isabelle)
 
   def isabelleBuildTask(config: Configuration): Def.Initialize[Task[Unit]] =
     (streams, isabelleSetup in config, isabelleSessions in config, fullClasspath in config, taskTemporaryDirectory, name) map {
       (streams, setups, sessions, classpath, tmp, name) =>
-        SbtLogger.withLogger(streams.log) {
-          val classLoader = new URLClassLoader(classpath.map(_.data.toURI.toURL).toArray)
-          val path = (tmp / "sbt-libisabelle" / name / config.name).toPath
-          val resources = Resources.dumpIsabelleResources(path, classLoader) match {
-            case Right(resources) => resources
-            case Left(reason) => sys.error(reason.explain)
-          }
-          val configurations = sessions.map(resources.makeConfiguration(Nil, _))
+        val path = (tmp / "sbt-libisabelle" / name / config.name).toPath
+        val resources = doDump(classpath.map(_.data), path, streams.log)
+        val configurations = sessions.map(resources.makeConfiguration(Nil, _))
 
+        SbtLogger.withLogger(streams.log) {
           withExecutionContext { implicit ec =>
             val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
               acc.flatMap { envs =>
@@ -129,6 +137,46 @@ object LibisabellePlugin extends AutoPlugin {
       }
     }
 
+  def isabelleJEditTask(config: Configuration): Def.Initialize[InputTask[Unit]] = Def.inputTask {
+    val log = streams.value.log
+    val (logic, version) =
+      Def.spaceDelimited().parsed match {
+        case List(logic) =>
+          val version = isabelleVersions.value match {
+            case v :: _ =>
+              log.info(s"Choosing Isabelle$v")
+              v
+            case _ =>
+              sys.error("No Isabelle version specified and none set")
+          }
+          (logic, Version(version))
+        case List(logic, version) =>
+          (logic, Version(version))
+        case _ =>
+          sys.error("Expected one or two arguments: LOGIC [VERSION]")
+    }
+    val setup = doSetup(version, log)
+    log.info("Done.")
+
+    val dump = Platform.guess match {
+      case Some(platform) => platform.resourcesStorage(version)
+      case None => sys.error("Could not store resources in standard directory")
+    }
+    FileUtils.deleteDirectory(dump.toFile)
+
+    SbtLogger.withLogger(log) {
+      val resources = doDump((fullClasspath in config).value.map(_.data), dump, log)
+      log.info(s"Creating environment for ${setup.version} ...")
+      withExecutionContext { implicit ec =>
+        val future = setup.makeEnvironment.map { env =>
+          env.exec("jedit", List("-l", logic, "-d", resources.path.toString))
+          ()
+        }
+        Await.result(future, Duration.Inf)
+      }
+    }
+  } tag(Isabelle)
+
   def isabelleSettings(config: Configuration): Seq[Setting[_]] = Seq(
     resourceGenerators in config <+= generatorTask(config),
     isabelleSource in config := (sourceDirectory in config).value / "isabelle",
@@ -137,7 +185,8 @@ object LibisabellePlugin extends AutoPlugin {
     },
     isabelleSessions in config := Nil,
     isabelleSetup in config <<= isabelleSetupTask(config),
-    isabelleBuild in config <<= isabelleBuildTask(config)
+    isabelleBuild in config <<= isabelleBuildTask(config),
+    isabelleJEdit in config <<= isabelleJEditTask(config)
   )
 
   def globalIsabelleSettings: Seq[Setting[_]] = Seq(
@@ -145,6 +194,7 @@ object LibisabellePlugin extends AutoPlugin {
     isabelleVersions := Nil,
     logLevel in isabelleSetup := Level.Debug,
     logLevel in isabelleBuild := Level.Debug,
+    logLevel in isabelleJEdit := Level.Debug,
     concurrentRestrictions in Global += Tags.limit(Isabelle, 1),
     isabelleSourceFilter := - ".*"
   )
