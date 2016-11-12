@@ -22,7 +22,7 @@ import info.hupel.isabelle.setup.{Platform, Resources, Setup}
 object LibisabellePlugin extends AutoPlugin {
 
   object autoImport {
-    lazy val isabelleSource = settingKey[File]("Isabelle source directory")
+    lazy val isabelleSources = settingKey[Seq[File]]("Isabelle source directories")
     lazy val isabelleSourceFilter = settingKey[FileFilter]("Isabelle source files filter")
     lazy val isabellePackage = settingKey[String]("Isabelle package name")
     lazy val isabelleVersions = settingKey[Seq[String]]("Isabelle versions")
@@ -102,39 +102,36 @@ object LibisabellePlugin extends AutoPlugin {
       } tag(Isabelle)
 
   def generatorTask(config: Configuration): Def.Initialize[Task[Seq[File]]] =
-    (streams, isabellePackage, isabelleSource in config, isabelleSourceFilter, resourceManaged in config) map { (streams, name, source, filter, rawTarget) =>
+    (streams, isabellePackage, isabelleSources in config, isabelleSourceFilter, resourceManaged in config) map { (streams, name, sources, filter, rawTarget) =>
       val log = streams.log
       val target = rawTarget / ".libisabelle"
-      if (source.exists()) {
-        val mapping = (PathFinder(source) ** filter) pair (Path.rebase(source, target / name))
+      val mapping = sources.filter(_.exists()).flatMap { source =>
+        ((PathFinder(source) ** filter) --- source) pair (Path.rebase(source, target / name))
+      }.sortBy(_._2)
 
-        val upToDate = {
-          val targetFiles = (PathFinder(target / name).***).get
-          (mapping.map(_._2) == targetFiles) &&
-            (mapping.map(_._1) zip targetFiles).forall { case (in, out) =>
-              if (in.isFile && out.isFile)
-                in.lastModified == out.lastModified
-              else
-                in.isDirectory && out.isDirectory
-            }
-        }
-
-        if (!upToDate) {
-          log.info(s"Copying ${mapping.length} Isabelle source(s) from $source to $target ...")
-          IO.delete(target)
-          IO.copy(mapping, preserveLastModified = true)
-        }
-
-        val files = ((target / name) ** "*").get.filter(_.isFile)
-        val mapper = Path.rebase(target, "")
-        val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
-        val list = target / ".files"
-        IO.write(list, s"$contents")
-        list +: files
+      val upToDate = {
+        val targetFiles = (PathFinder(target / name).*** --- (target / name)).get.sorted
+        (mapping.map(_._2) == targetFiles) &&
+          (mapping.map(_._1) zip targetFiles).forall { case (in, out) =>
+            if (in.isFile && out.isFile)
+              in.lastModified == out.lastModified
+            else
+              in.isDirectory && out.isDirectory
+          }
       }
-      else {
-        Nil
+
+      if (!upToDate) {
+        log.info(s"Copying ${mapping.length} Isabelle source(s) to $target ...")
+        IO.delete(target)
+        IO.copy(mapping, preserveLastModified = true)
       }
+
+      val files = ((target / name) ** "*").get.filter(_.isFile)
+      val mapper = Path.rebase(target, "")
+      val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
+      val list = target / ".files"
+      IO.write(list, s"$contents")
+      list +: files
     }
 
   def isabelleJEditTask(config: Configuration): Def.Initialize[InputTask[Unit]] = Def.inputTask {
@@ -179,9 +176,9 @@ object LibisabellePlugin extends AutoPlugin {
 
   def isabelleSettings(config: Configuration): Seq[Setting[_]] = Seq(
     resourceGenerators in config <+= generatorTask(config),
-    isabelleSource in config := (sourceDirectory in config).value / "isabelle",
-    watchSources <++= (isabelleSource in config) map { src =>
-      (src ** "*").get
+    isabelleSources in config := List((sourceDirectory in config).value / "isabelle"),
+    watchSources <++= (isabelleSources in config) map { sources =>
+      sources.flatMap(source => (source ** "*").get)
     },
     isabelleSessions in config := Nil,
     isabelleSetup in config <<= isabelleSetupTask(config),
