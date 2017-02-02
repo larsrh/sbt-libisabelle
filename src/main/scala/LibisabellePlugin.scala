@@ -189,15 +189,18 @@ object LibisabellePlugin extends AutoPlugin {
   def globalIsabelleSettings: Seq[Setting[_]] = Seq(
     isabellePackage := moduleName.value,
     isabelleVersions := Nil,
-    logLevel in isabelleSetup := Level.Debug,
-    logLevel in isabelleBuild := Level.Debug,
-    logLevel in isabelleJEdit := Level.Debug,
-    concurrentRestrictions in Global += Tags.limit(Isabelle, 1),
     isabelleSourceFilter := - ".*"
   )
 
   override def projectSettings: Seq[Setting[_]] =
     Seq(Compile, Test).flatMap(isabelleSettings) ++
     globalIsabelleSettings
+
+  override def globalSettings: Seq[Setting[_]] = Seq(
+    logLevel in isabelleSetup := Level.Debug,
+    logLevel in isabelleBuild := Level.Debug,
+    logLevel in isabelleJEdit := Level.Debug,
+    concurrentRestrictions += Tags.limit(Isabelle, 1)
+  )
 
 }
