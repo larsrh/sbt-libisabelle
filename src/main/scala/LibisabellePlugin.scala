@@ -15,6 +15,9 @@ import scala.concurrent.duration.Duration
 
 import com.vast.sbtlogger.SbtLogger
 
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
+
 import info.hupel.isabelle.System
 import info.hupel.isabelle.api.{Configuration => _, _}
 import info.hupel.isabelle.setup.{Platform, Resources, Setup}
@@ -38,11 +41,19 @@ object LibisabellePlugin extends AutoPlugin {
 
   val Isabelle = Tags.Tag("isabelle")
 
-  private def withExecutionContext[T](f: ExecutionContext => T): T = {
+  private def withScheduler[T](f: Scheduler => T): T = {
     val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
-    val result = f(ec)
-    ec.shutdownNow()
-    result
+    val se = Executors.newSingleThreadScheduledExecutor()
+    val reporter = UncaughtExceptionReporter(t => throw t)
+    val scheduler = Scheduler(se, ec, reporter, AlwaysAsyncExecution)
+    try {
+      f(scheduler)
+    }
+    finally {
+      ec.shutdownNow()
+      se.shutdownNow()
+      ()
+    }
   }
 
   private def doSetup(v: Version, log: Logger) =
@@ -79,7 +90,7 @@ object LibisabellePlugin extends AutoPlugin {
         val configurations = sessions.map(resources.makeConfiguration(Nil, _))
 
         SbtLogger.withLogger(streams.log) {
-          withExecutionContext { implicit ec =>
+          withScheduler { implicit sched =>
             val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
               acc.flatMap { envs =>
                 streams.log.info(s"Creating environment for ${setup.version} ...")
@@ -164,7 +175,7 @@ object LibisabellePlugin extends AutoPlugin {
     SbtLogger.withLogger(log) {
       val resources = doDump((fullClasspath in config).value.map(_.data), dump, log)
       log.info(s"Creating environment for ${setup.version} ...")
-      withExecutionContext { implicit ec =>
+      withScheduler { implicit sched =>
         val future = setup.makeEnvironment.map { env =>
           env.exec("jedit", List("-l", logic, "-d", resources.path.toString))
           ()
