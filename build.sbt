@@ -24,7 +24,8 @@ libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.6.6"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
-addSbtPlugin("info.hupel.fork.com.vast.sbt" %% "sbt-slf4j" % "0.3")
+addSbtPlugin("info.hupel.fork.com.vast.sbt" % "sbt-slf4j" % "0.3")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
 
 pomExtra := (
   <developers>
