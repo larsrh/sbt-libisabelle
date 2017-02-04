@@ -15,11 +15,10 @@ import scala.concurrent.duration.Duration
 
 import com.vast.sbtlogger.SbtLogger
 
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
 
 import info.hupel.isabelle.System
-import info.hupel.isabelle.api.{Configuration => _, _}
+import info.hupel.isabelle.api.{Configuration => IsabelleConfiguration, _}
 import info.hupel.isabelle.setup.{Platform, Resources, Setup}
 
 object LibisabellePlugin extends AutoPlugin {
@@ -45,7 +44,7 @@ object LibisabellePlugin extends AutoPlugin {
     val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
     val se = Executors.newSingleThreadScheduledExecutor()
     val reporter = UncaughtExceptionReporter(t => throw t)
-    val scheduler = Scheduler(se, ec, reporter, AlwaysAsyncExecution)
+    val scheduler = Scheduler(se, ec, reporter, ExecutionModel.AlwaysAsyncExecution)
     try {
       f(scheduler)
     }
@@ -87,14 +86,14 @@ object LibisabellePlugin extends AutoPlugin {
       (streams, setups, sessions, classpath, tmp, name) =>
         val path = (tmp / "sbt-libisabelle" / name / config.name).toPath
         val resources = doDump(classpath.map(_.data), path, streams.log)
-        val configurations = sessions.map(resources.makeConfiguration(Nil, _))
+        val configurations = sessions.map(IsabelleConfiguration.simple)
 
         SbtLogger.withLogger(streams.log) {
           withScheduler { implicit sched =>
             val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
               acc.flatMap { envs =>
                 streams.log.info(s"Creating environment for ${setup.version} ...")
-                setup.makeEnvironment.map(_ :: envs)
+                setup.makeEnvironment(resources).map(_ :: envs)
               }
             }
 
@@ -176,8 +175,8 @@ object LibisabellePlugin extends AutoPlugin {
       val resources = doDump((fullClasspath in config).value.map(_.data), dump, log)
       log.info(s"Creating environment for ${setup.version} ...")
       withScheduler { implicit sched =>
-        val future = setup.makeEnvironment.map { env =>
-          env.exec("jedit", List("-l", logic, "-d", resources.path.toString))
+        val future = setup.makeEnvironment(resources).map { env =>
+          env.exec("jedit", List("-l", logic))
           ()
         }
         Await.result(future, Duration.Inf)
