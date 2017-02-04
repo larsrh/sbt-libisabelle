@@ -8,3 +8,10 @@
 
 
 SBT helper for libisabelle
+
+## Compatibility matrix
+
+| sbt-libisabelle version  | libisabelle version | Isabelle versions |
+| ------------------------ | ------------------- | ----------------- |
+| 0.4.x                    | 0.6.x               | 2016              |
+| 0.5.x                    | 0.7.x               | 2016, 2016-1      |
