@@ -50,4 +50,4 @@ You may also want to check out [libisabelle-example](https://github.com/larsrh/l
 | sbt-libisabelle version  | libisabelle version | Isabelle versions |
 | ------------------------ | ------------------- | ----------------- |
 | 0.4.x                    | 0.6.x               | 2016              |
-| 0.5.x                    | 0.7.x               | 2016, 2016-1      |
+| 0.5.x                    | 0.7.x, 0.8.x        | 2016, 2016-1      |

@@ -17,9 +17,9 @@ import com.vast.sbtlogger.SbtLogger
 
 import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
 
-import info.hupel.isabelle.System
+import info.hupel.isabelle.{Platform, System}
 import info.hupel.isabelle.api.{Configuration => IsabelleConfiguration, _}
-import info.hupel.isabelle.setup.{Platform, Resources, Setup}
+import info.hupel.isabelle.setup.{Resources, Setup}
 
 object LibisabellePlugin extends AutoPlugin {
 
@@ -55,7 +55,7 @@ object LibisabellePlugin extends AutoPlugin {
     }
   }
 
-  private def doSetup(v: Version, log: Logger) =
+  private def doSetup(v: Version.Stable, log: Logger) =
     SbtLogger.withLogger(log) {
       log.info(s"Creating setup for $v ...")
       Setup.default(v) match {
@@ -76,7 +76,7 @@ object LibisabellePlugin extends AutoPlugin {
 
   def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] =
     (streams, isabelleVersions in config) map { (streams, vs) =>
-      val setups = vs.map(v => doSetup(Version(v), streams.log))
+      val setups = vs.map(v => doSetup(Version.Stable(v), streams.log))
       streams.log.info("Done.")
       setups
     } tag(Isabelle)
@@ -156,9 +156,9 @@ object LibisabellePlugin extends AutoPlugin {
             case _ =>
               sys.error("No Isabelle version specified and none set")
           }
-          (logic, Version(version))
+          (logic, Version.Stable(version))
         case List(logic, version) =>
-          (logic, Version(version))
+          (logic, Version.Stable(version))
         case _ =>
           sys.error("Expected one or two arguments: LOGIC [VERSION]")
     }
