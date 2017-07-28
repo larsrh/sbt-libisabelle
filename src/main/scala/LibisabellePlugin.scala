@@ -74,75 +74,78 @@ object LibisabellePlugin extends AutoPlugin {
     }
   }
 
-  def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] =
-    (streams, isabelleVersions in config) map { (streams, vs) =>
-      val setups = vs.map(v => doSetup(Version.Stable(v), streams.log))
-      streams.log.info("Done.")
-      setups
-    } tag(Isabelle)
+  def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] = Def.task {
+    val setups = (isabelleVersions in config).value.map(v => doSetup(Version.Stable(v), streams.value.log))
+    streams.value.log.info("Done.")
+    setups
+  } tag(Isabelle)
 
-  def isabelleBuildTask(config: Configuration): Def.Initialize[Task[Unit]] =
-    (streams, isabelleSetup in config, isabelleSessions in config, fullClasspath in config, taskTemporaryDirectory, name) map {
-      (streams, setups, sessions, classpath, tmp, name) =>
-        val path = (tmp / "sbt-libisabelle" / name / config.name).toPath
-        val resources = doDump(classpath.map(_.data), path, streams.log)
-        val configurations = sessions.map(IsabelleConfiguration.simple)
+  def isabelleBuildTask(config: Configuration): Def.Initialize[Task[Unit]] = Def.task {
+    val classpath = (fullClasspath in config).value
+    val sessions = (isabelleSessions in config).value
+    val setups = (isabelleSetup in config).value
+    val path = (taskTemporaryDirectory.value / "sbt-libisabelle" / isabellePackage.value / config.name).toPath
+    val log = streams.value.log
+    val resources = doDump(classpath.map(_.data), path, log)
+    val configurations = sessions.map(IsabelleConfiguration.simple)
 
-        SbtLogger.withLogger(streams.log) {
-          withScheduler { implicit sched =>
-            val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
-              acc.flatMap { envs =>
-                streams.log.info(s"Creating environment for ${setup.version} ...")
-                setup.makeEnvironment(resources).map(_ :: envs)
-              }
-            }
-
-            for {
-              env <- Await.result(envs, Duration.Inf)
-              config <- configurations
-            } {
-              streams.log.info(s"Building session ${config.session} for ${env.version} ...")
-              if (!System.build(env, config)) {
-                streams.log.error(s"Build of session ${config.session} for ${env.version} failed")
-                sys.error("build failed")
-              }
-            }
+    SbtLogger.withLogger(log) {
+      withScheduler { implicit sched =>
+        val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
+          acc.flatMap { envs =>
+            log.info(s"Creating environment for ${setup.version} ...")
+            setup.makeEnvironment(resources).map(_ :: envs)
           }
         }
-      } tag(Isabelle)
 
-  def generatorTask(config: Configuration): Def.Initialize[Task[Seq[File]]] =
-    (streams, isabellePackage, isabelleSources in config, isabelleSourceFilter, resourceManaged in config) map { (streams, name, sources, filter, rawTarget) =>
-      val log = streams.log
-      val target = rawTarget / ".libisabelle"
-      val mapping = sources.filter(_.exists()).flatMap { source =>
-        ((PathFinder(source) ** filter) --- source) pair (Path.rebase(source, target / name))
-      }.sortBy(_._2)
-
-      val upToDate = {
-        val targetFiles = (PathFinder(target / name).*** --- (target / name)).get.sorted
-        (mapping.map(_._2) == targetFiles) &&
-          (mapping.map(_._1) zip targetFiles).forall { case (in, out) =>
-            if (in.isFile && out.isFile)
-              in.lastModified == out.lastModified
-            else
-              in.isDirectory && out.isDirectory
+        for {
+          env <- Await.result(envs, Duration.Inf)
+          config <- configurations
+        } {
+          log.info(s"Building session ${config.session} for ${env.version} ...")
+          if (!System.build(env, config)) {
+            log.error(s"Build of session ${config.session} for ${env.version} failed")
+            sys.error("build failed")
           }
+        }
       }
-
-      if (!upToDate) {
-        log.info(s"Copying ${mapping.length} Isabelle source(s) to $target ...")
-        IO.delete(target)
-        IO.copy(mapping, preserveLastModified = true)
-      }
-
-      val files = ((target / name) ** "*").get.filter(_.isFile)
-      val mapper = Path.rebase(target, "")
-      val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
-      val list = target / ".files"
-      IO.write(list, s"$contents")
-      list +: files
     }
+  } tag(Isabelle)
+
+  def generatorTask(config: Configuration): Def.Initialize[Task[Seq[File]]] = Def.task {
+    val log = streams.value.log
+    val name = isabellePackage.value
+    val sources = (isabelleSources in config).value
+    val filter = isabelleSourceFilter.value
+    val target = (resourceManaged in config).value / ".libisabelle"
+    val mapping = sources.filter(_.exists()).flatMap { source =>
+      ((PathFinder(source) ** filter) --- source) pair (Path.rebase(source, target / name))
+    }.sortBy(_._2)
+
+    val upToDate = {
+      val targetFiles = (PathFinder(target / name).*** --- (target / name)).get.sorted
+      (mapping.map(_._2) == targetFiles) &&
+        (mapping.map(_._1) zip targetFiles).forall { case (in, out) =>
+          if (in.isFile && out.isFile)
+            in.lastModified == out.lastModified
+          else
+            in.isDirectory && out.isDirectory
+        }
+    }
+
+    if (!upToDate) {
+      log.info(s"Copying ${mapping.length} Isabelle source(s) to $target ...")
+      IO.delete(target)
+      IO.copy(mapping, preserveLastModified = true)
+    }
+
+    val files = ((target / name) ** "*").get.filter(_.isFile)
+    val mapper = Path.rebase(target, "")
+    val contents = files.map(file => FilenameUtils.separatorsToUnix(mapper(file).get)).mkString("\n")
+    val list = target / ".files"
+    IO.write(list, s"$contents")
+    list +: files
+  }
 
   def isabelleJEditTask(config: Configuration): Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val log = streams.value.log
@@ -185,15 +188,13 @@ object LibisabellePlugin extends AutoPlugin {
   } tag(Isabelle)
 
   def isabelleSettings(config: Configuration): Seq[Setting[_]] = Seq(
-    resourceGenerators in config <+= generatorTask(config),
+    resourceGenerators in config += generatorTask(config),
     isabelleSources in config := List((sourceDirectory in config).value / "isabelle"),
-    watchSources <++= (isabelleSources in config) map { sources =>
-      sources.flatMap(source => (source ** "*").get)
-    },
+    watchSources ++= (isabelleSources in config).value.flatMap(source => (source ** "*").get),
     isabelleSessions in config := Nil,
-    isabelleSetup in config <<= isabelleSetupTask(config),
-    isabelleBuild in config <<= isabelleBuildTask(config),
-    isabelleJEdit in config <<= isabelleJEditTask(config)
+    isabelleSetup in config := isabelleSetupTask(config).value,
+    isabelleBuild in config := isabelleBuildTask(config).value,
+    isabelleJEdit in config := isabelleJEditTask(config).evaluated
   )
 
   def globalIsabelleSettings: Seq[Setting[_]] = Seq(

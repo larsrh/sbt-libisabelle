@@ -20,12 +20,12 @@ homepage := Some(url("http://lars.hupel.info/libisabelle/"))
 
 licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
-libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.8.0"
+libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.8.3"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
 addSbtPlugin("info.hupel.fork.com.vast.sbt" % "sbt-slf4j" % "0.3")
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
 pomExtra := (
   <developers>
@@ -47,7 +47,7 @@ credentials += Credentials(
 )
 
 scriptedSettings
-scriptedLaunchOpts <+= version apply { v => "-Dproject.version="+v }
+scriptedLaunchOpts += s"-Dproject.version=${version.value}"
 
 scriptedBufferLog := false
 
