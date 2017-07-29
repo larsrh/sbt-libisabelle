@@ -69,3 +69,10 @@ releaseProcess := Seq[ReleaseStep](
   commitNextVersion,
   ReleaseStep(action = Command.process("sonatypeRelease", _))
 )
+
+publishTo := Some(
+  if (isSnapshot.value)
+    Opts.resolver.sonatypeSnapshots
+  else
+    Opts.resolver.sonatypeStaging
+)
