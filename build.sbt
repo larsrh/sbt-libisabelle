@@ -24,7 +24,6 @@ libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.8.3"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
-addSbtPlugin("info.hupel.fork.com.vast.sbt" % "sbt-slf4j" % "0.3")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
 pomExtra := (
@@ -46,13 +45,14 @@ credentials += Credentials(
   Option(System.getProperty("build.publish.credentials")) map (new File(_)) getOrElse (Path.userHome / ".ivy2" / ".credentials")
 )
 
-scriptedSettings
 scriptedLaunchOpts += s"-Dproject.version=${version.value}"
 
 scriptedBufferLog := false
 
 // Release stuff
 
+// not yet available for 1.0.x
+/*
 import ReleaseTransformations._
 
 releaseVcsSign := true
@@ -69,6 +69,7 @@ releaseProcess := Seq[ReleaseStep](
   commitNextVersion,
   ReleaseStep(action = Command.process("sonatypeRelease", _))
 )
+*/
 
 publishTo := Some(
   if (isSnapshot.value)

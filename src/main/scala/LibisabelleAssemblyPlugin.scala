@@ -1,7 +1,6 @@
 package info.hupel.isabelle.sbt
 
 import sbt._
-import sbt.Keys._
 
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
