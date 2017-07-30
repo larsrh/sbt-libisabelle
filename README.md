@@ -12,7 +12,8 @@
 In your `project/plugins.sbt`, add this line:
 
 ```scala
-addSbtPlugin("info.hupel" % "sbt-libisabelle" % "0.5.0")
+// sbt 0.13.x, 1.0.x
+addSbtPlugin("info.hupel" % "sbt-libisabelle" % "0.5.1")
 ```
 
 To enable the plugin for a build, add this to your `build.sbt`:
@@ -47,7 +48,8 @@ You may also want to check out [libisabelle-example](https://github.com/larsrh/l
 
 ## Compatibility matrix
 
-| sbt-libisabelle version  | libisabelle version | Isabelle versions |
-| ------------------------ | ------------------- | ----------------- |
-| 0.4.x                    | 0.6.x               | 2016              |
-| 0.5.x                    | 0.7.x, 0.8.x        | 2016, 2016-1      |
+| sbt-libisabelle version  | sbt versions  | libisabelle version | Isabelle versions |
+| ------------------------ | ------------- | ------------------- | ----------------- |
+| 0.4.x                    | 0.13.x        | 0.6.x               | 2016              |
+| 0.5.0                    | 0.13.x        | 0.7.x, 0.8.x        | 2016, 2016-1      |
+| 0.5.1                    | 0.13.x, 1.0.x | 0.7.x, 0.8.x        | 2016, 2016-1      |
