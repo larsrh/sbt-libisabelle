@@ -51,8 +51,6 @@ scriptedBufferLog := false
 
 // Release stuff
 
-// not yet available for 1.0.x
-/*
 import ReleaseTransformations._
 
 releaseVcsSign := true
@@ -64,12 +62,11 @@ releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
-  ReleaseStep(action = Command.process("publishSigned", _)),
+  releaseStepCommand("publishSigned"),
   setNextVersion,
   commitNextVersion,
-  ReleaseStep(action = Command.process("sonatypeRelease", _))
+  releaseStepCommand("sonatypeRelease")
 )
-*/
 
 publishTo := Some(
   if (isSnapshot.value)
