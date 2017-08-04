@@ -51,5 +51,5 @@ You may also want to check out [libisabelle-example](https://github.com/larsrh/l
 | sbt-libisabelle version  | sbt versions  | libisabelle version | Isabelle versions |
 | ------------------------ | ------------- | ------------------- | ----------------- |
 | 0.4.x                    | 0.13.x        | 0.6.x               | 2016              |
-| 0.5.0                    | 0.13.x        | 0.7.x, 0.8.x        | 2016, 2016-1      |
-| 0.5.1                    | 0.13.x, 1.0.x | 0.7.x, 0.8.x        | 2016, 2016-1      |
+| 0.5.0                    | 0.13.x        | 0.7.x – 0.9.x       | 2016, 2016-1      |
+| 0.5.1                    | 0.13.x, 1.0.x | 0.7.x – 0.9.x       | 2016, 2016-1      |
