@@ -26,11 +26,14 @@ object LibisabellePlugin extends AutoPlugin {
     lazy val isabelleSources = settingKey[Seq[File]]("Isabelle source directories")
     lazy val isabelleSourceFilter = settingKey[FileFilter]("Isabelle source files filter")
     lazy val isabellePackage = settingKey[String]("Isabelle package name")
-    lazy val isabelleVersions = settingKey[Seq[String]]("Isabelle versions")
+    lazy val isabelleVersions = taskKey[Seq[Version]]("Isabelle versions")
     lazy val isabelleSessions = settingKey[Seq[String]]("Isabelle sessions")
     lazy val isabelleSetup = taskKey[Seq[Setup]]("Setup Isabelle")
     lazy val isabelleBuild = taskKey[Unit]("Build Isabelle sessions")
     lazy val isabelleJEdit = inputKey[Unit]("Launch Isabelle/jEdit")
+
+    type Version = info.hupel.isabelle.api.Version
+    val Version = info.hupel.isabelle.api.Version
   }
 
   import autoImport._
@@ -54,9 +57,9 @@ object LibisabellePlugin extends AutoPlugin {
     }
   }
 
-  private def doSetup(v: Version.Stable, log: Logger) = {
+  private def doSetup(v: Version, log: Logger) = {
     log.info(s"Creating setup for $v ...")
-    Setup.default(v) match {
+    Setup.default(v, false) match {
       case Right(setup) => setup
       case Left(reason) => sys.error(reason.explain)
     }
@@ -72,7 +75,7 @@ object LibisabellePlugin extends AutoPlugin {
 
   def isabelleSetupTask(config: Configuration): Def.Initialize[Task[Seq[Setup]]] = Def.task {
     val log = streams.value.log
-    val setups = (isabelleVersions in config).value.map(v => doSetup(Version.Stable(v), log))
+    val setups = (isabelleVersions in config).value.map(v => doSetup(v, log))
     log.info("Done.")
     setups
   } tag(Isabelle)
@@ -90,7 +93,7 @@ object LibisabellePlugin extends AutoPlugin {
       val envs = setups.foldLeft(Future.successful(List.empty[Environment])) { case (acc, setup) =>
         acc.flatMap { envs =>
           log.info(s"Creating environment for ${setup.version} ...")
-          setup.makeEnvironment(resources).map(_ :: envs)
+          setup.makeEnvironment(resources, Nil).map(_ :: envs)
         }
       }
 
@@ -147,16 +150,18 @@ object LibisabellePlugin extends AutoPlugin {
     val (logic, version) =
       Def.spaceDelimited().parsed match {
         case List(logic) =>
-          val version = isabelleVersions.value match {
+          isabelleVersions.value match {
             case v :: _ =>
-              log.info(s"Choosing Isabelle$v")
-              v
+              log.info(s"Choosing $v")
+              (logic, v)
             case _ =>
               sys.error("No Isabelle version specified and none set")
           }
-          (logic, Version.Stable(version))
-        case List(logic, version) =>
-          (logic, Version.Stable(version))
+        case List(logic, v) =>
+          Version.parse(v) match {
+            case Right(v) => (logic, v)
+            case Left(err) => sys.error(err)
+          }
         case _ =>
           sys.error("Expected one or two arguments: LOGIC [VERSION]")
     }
@@ -172,7 +177,7 @@ object LibisabellePlugin extends AutoPlugin {
     val resources = doDump((fullClasspath in config).value.map(_.data), dump, log)
     log.info(s"Creating environment for ${setup.version} ...")
     withScheduler { implicit sched =>
-      val future = setup.makeEnvironment(resources).map { env =>
+      val future = setup.makeEnvironment(resources, Nil).map { env =>
         env.exec("jedit", List("-l", logic))
         ()
       }
@@ -195,7 +200,23 @@ object LibisabellePlugin extends AutoPlugin {
 
   def globalIsabelleSettings: Seq[Setting[_]] = Seq(
     isabellePackage := moduleName.value,
-    isabelleVersions := Nil,
+    isabelleVersions := {
+      val log = streams.value.log
+      sys.env.get("ISABELLE_VERSION") match {
+        case Some(v) =>
+          Version.parse(v) match {
+            case Right(v) =>
+              log.info(s"Using $v")
+              Seq(v)
+            case Left(err) =>
+              log.warn(err)
+              Nil
+          }
+        case _ =>
+          log.warn("No ISABELLE_VERSION set")
+          Nil
+      }
+    },
     isabelleSourceFilter := - ".*"
   )
 

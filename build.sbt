@@ -20,7 +20,7 @@ homepage := Some(url("http://lars.hupel.info/libisabelle/"))
 
 licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 
-libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.8.3"
+libraryDependencies += "info.hupel" %% "libisabelle-setup" % "0.9.1"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
