@@ -53,12 +53,13 @@ You may also want to check out [isabelle-irc-bot](https://github.com/larsrh/isab
 
 ## Compatibility matrix
 
-| sbt-libisabelle version  | sbt versions  | libisabelle version | Isabelle versions     |
-| ------------------------ | ------------- | ------------------- | --------------------- |
-| 0.4.x                    | 0.13.x        | 0.6.x               | 2016                  |
-| 0.5.0                    | 0.13.x        | 0.7.x – 0.9.x       | 2016, 2016-1          |
-| 0.5.1                    | 0.13.x, 1.0.x | 0.7.x – 0.9.x       | 2016, 2016-1          |
-| 0.6.x                    | 1.0.x         | 0.7.x – 0.9.x       | 2016, 2016-1, Generic |
+| sbt-libisabelle version  | sbt versions  | libisabelle version | Isabelle versions           |
+| ------------------------ | ------------- | ------------------- | --------------------------- |
+| 0.4.x                    | 0.13.x        | 0.6.x               | 2016                        |
+| 0.5.0                    | 0.13.x        | 0.7.x – 0.9.x       | 2016, 2016-1                |
+| 0.5.1                    | 0.13.x, 1.0.x | 0.7.x – 0.9.x       | 2016, 2016-1                |
+| 0.6.0                    | 1.0.x         | 0.7.x – 0.9.x       | 2016, 2016-1, Generic       |
+| 0.6.1                    | 1.0.x         | 0.7.x – 0.9.x       | 2016, 2016-1, 2017, Generic |
 
 _Generic_ means that arbitrary versions are supported (not on Windows), as long as they have a `bin/isabelle` executable.
 This is tested on Linux and macOS and should work with Isabelle since at least 2013.
