@@ -1,5 +1,5 @@
 theory Test
-imports Protocol_Pure
+imports Protocol.Protocol_Pure
 begin
 
 end
