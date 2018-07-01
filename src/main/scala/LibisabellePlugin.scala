@@ -217,7 +217,7 @@ object LibisabellePlugin extends AutoPlugin {
           Nil
       }
     },
-    isabelleSourceFilter := - ".*"
+    isabelleSourceFilter := (- ".*") && (- "*~")
   )
 
   override def projectSettings: Seq[Setting[_]] =
