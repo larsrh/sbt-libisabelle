@@ -5,7 +5,7 @@ enablePlugins(LibisabellePlugin)
 isabelleSessions in Compile := Seq("Test")
 
 isabelleVersions := {
-  val official = Seq(Version.Stable("2018-RC0"))
+  val official = Seq(Version.Stable("2018"))
   if (sys.env.contains("APPVEYOR"))
     official
   else

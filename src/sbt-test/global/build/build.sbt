@@ -5,7 +5,7 @@ lazy val root = project.in(file("."))
   .enablePlugins(LibisabellePlugin)
   .settings(
     moduleName := "test",
-    isabelleVersions := List(Version.Stable("2018-RC0")),
+    isabelleVersions := List(Version.Stable("2018")),
     LibisabellePlugin.isabelleSettings(Fail),
     isabelleSessions in Compile := List("Pure", "Test"),
     isabelleSessions in Fail := List("Test_Fail")
