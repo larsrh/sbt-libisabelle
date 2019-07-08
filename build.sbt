@@ -24,7 +24,7 @@ libraryDependencies += "info.hupel" %% "libisabelle-setup" % "1.0.1"
 
 resolvers += Resolver.sonatypeRepo("releases")
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.9")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
 
 enablePlugins(ScriptedPlugin)
 
